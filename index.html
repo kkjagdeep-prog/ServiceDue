@@ -1,0 +1,86 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#0E6B6B">
+<title>ServiceDue – Vehicle maintenance tracker</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;600;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header><div class="wrap">
+  <div class="top">
+    <div><h1>ServiceDue</h1><p class="tag">Know when your vehicle needs its next service.</p></div>
+    <button class="btn light" id="addVehicle">Add vehicle</button>
+  </div>
+  <nav role="tablist">
+    <button role="tab" aria-selected="true" data-tab="dash">Vehicles</button>
+    <button role="tab" aria-selected="false" data-tab="hist">Service history</button>
+  </nav>
+</div></header>
+<main><div class="wrap">
+  <section id="dash"></section>
+  <section id="hist" class="hide"></section>
+</div></main>
+
+<dialog id="vDlg"><form method="dialog" id="vForm">
+  <h3 id="vTitle">Add vehicle</h3>
+  <input type="hidden" name="id">
+  <label>Owner name<input name="owner" required></label>
+  <div class="two">
+    <label>Vehicle number<input name="number" required placeholder="TN 01 AB 1234"></label>
+    <label>Model<input name="model" required placeholder="Honda Activa"></label>
+  </div>
+  <div class="two">
+    <label>Type
+      <select name="type">
+        <option>Two-wheeler</option>
+        <option>Car</option>
+        <option>Truck</option>
+        <option>Other</option>
+      </select>
+    </label>
+    <label>Manufacturing year<input name="year" type="number" min="1980" max="2100" required></label>
+  </div>
+  <label>Current kilometre reading<input name="km" type="number" min="0" required></label>
+  <div class="two">
+    <label>Service every (km)<input name="intervalKm" type="number" min="100" value="5000" required></label>
+    <label>Service every (months)<input name="intervalMonths" type="number" min="1" value="6" required></label>
+  </div>
+  <div class="foot">
+    <button type="button" class="btn ghost" data-close>Cancel</button>
+    <button class="btn" value="ok">Save vehicle</button>
+  </div>
+</form></dialog>
+
+<dialog id="sDlg"><form method="dialog" id="sForm">
+  <h3 id="sTitle">Log a service</h3>
+  <input type="hidden" name="vid">
+  <div class="two">
+    <label>Service date<input name="date" type="date" required></label>
+    <label>Kilometre reading<input name="km" type="number" min="0" required></label>
+  </div>
+  <label>Service type
+    <select name="type">
+      <option>Regular service</option>
+      <option>Oil change</option>
+      <option>Brake service</option>
+      <option>Tyre change</option>
+      <option>Repair</option>
+      <option>Other</option>
+    </select>
+  </label>
+  <label>Parts replaced<input name="parts" placeholder="Oil filter, air filter"></label>
+  <label>Cost (₹)<input name="cost" type="number" min="0" value="0"></label>
+  <div class="foot">
+    <button type="button" class="btn ghost" data-close>Cancel</button>
+    <button class="btn" value="ok">Save service</button>
+  </div>
+</form></dialog>
+
+<script src="app.js"></script>
+</body>
+</html>
