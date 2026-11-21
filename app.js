@@ -1,365 +1,661 @@
-const icon = (name, size = 16) => {
-  const paths = {
-    car:      `<circle cx="5" cy="17" r="1"/><circle cx="19" cy="17" r="1"/><path d="M17 17H7V5a2 2 0 0 1 2-2h6l2 4v10z"/><path d="M5 17H3v-5l2-4"/>`,
-    plus:     `<path d="M12 5v14M5 12h14"/>`,
-    wrench:   `<path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/>`,
-    edit:     `<path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.12 2.12 0 0 1 3 3L12 15l-4 1 1-4Z"/>`,
-    trash:    `<path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>`,
-    download: `<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>`,
-    sun:      `<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/>`,
-    moon:     `<path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9z"/>`,
-    gauge:    `<path d="m12 14 4-4"/><path d="M3.34 19a10 10 0 1 1 17.32 0"/>`,
-  };
-  return `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${paths[name] || ''}</svg>`;
-};
+:root {
+  --paper:      #F5F2ED;
+  --paper-mid:  #EDE9E1;
+  --paper-rule: #D9D4CB;
+  --ink:        #1A1A18;
+  --ink-mute:   #6B6760;
+  --ink-faint:  #A09C97;
+  --accent:     #C8460A;
+  --surface:    #FFFFFF;
 
-const KEY = 'servicedue.v2';
-const uid = () => Math.random().toString(36).slice(2, 9);
+  --ok-ink:     #1A5C3A;
+  --ok-bg:      #EBF4EE;
+  --ok-rule:    #2E8A57;
+  --soon-ink:   #7A4F00;
+  --soon-bg:    #F7F0DC;
+  --soon-rule:  #C98D00;
+  --over-ink:   #8C1F0F;
+  --over-bg:    #FAEBE8;
+  --over-rule:  #C8460A;
+  --none-ink:   #6B6760;
+  --none-bg:    #F5F2ED;
+  --none-rule:  #A09C97;
 
-let db = (() => {
-  try { return JSON.parse(localStorage.getItem(KEY)) || { vehicles: [], services: [] }; }
-  catch { return { vehicles: [], services: [] }; }
-})();
+  --s1: 8px;  --s2: 16px; --s3: 24px; --s4: 32px;
+  --s5: 40px; --s6: 48px; --s7: 56px; --s8: 64px;
 
-const save = () => { try { localStorage.setItem(KEY, JSON.stringify(db)); } catch {} };
-
-const iso = d => d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
-const today = () => iso(new Date());
-const addMonths = (s, m) => { const d = new Date(s+'T00:00:00'); d.setMonth(d.getMonth()+m); return iso(d); };
-const daysBetween = (a, b) => Math.round((new Date(b+'T00:00:00') - new Date(a+'T00:00:00')) / 864e5);
-const fmtDate = s => new Date(s+'T00:00:00').toLocaleDateString('en-IN', { day:'numeric', month:'short', year:'numeric' });
-const fmtKm = n => Number(n).toLocaleString('en-IN') + ' km';
-const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-
-function predict(v) {
-  const svcs = db.services.filter(s => s.vid === v.id).sort((a,b) => b.date.localeCompare(a.date));
-  const last = svcs[0];
-  if (!last) return { status: 'none', label: 'No service logged', last: null };
-  const nextKm   = last.km + v.intervalKm;
-  const nextDate = addMonths(last.date, v.intervalMonths);
-  const kmLeft   = nextKm - v.km;
-  const daysLeft = daysBetween(today(), nextDate);
-  let status = 'ok', label = 'Up to date';
-  if (kmLeft <= 0 || daysLeft < 0)         { status = 'over';  label = 'Overdue'; }
-  else if (kmLeft <= 500 || daysLeft <= 30) { status = 'soon';  label = 'Due soon'; }
-  return { status, label, last, nextKm, nextDate, kmLeft, daysLeft };
+  --radius: 3px;
+  --font-display: 'DM Serif Display', Georgia, serif;
+  --font-ui:      'DM Sans', system-ui, sans-serif;
 }
 
-function toast(msg) {
-  const wrap = document.getElementById('toast-wrap');
-  const el = document.createElement('div');
-  el.className = 'toast';
-  el.textContent = msg;
-  wrap.appendChild(el);
-  setTimeout(() => el.remove(), 2600);
-}
-
-let currentTheme = localStorage.getItem('servicedue.theme') || 'auto';
-
-function applyTheme(t) {
-  currentTheme = t;
-  localStorage.setItem('servicedue.theme', t);
-  const root = document.documentElement;
-  if (t === 'dark')       root.setAttribute('data-theme', 'dark');
-  else if (t === 'light') root.setAttribute('data-theme', 'light');
-  else                    root.removeAttribute('data-theme');
-  const isDark = t === 'dark' || (t === 'auto' && window.matchMedia('(prefers-color-scheme: dark)').matches);
-  document.getElementById('theme-btn').innerHTML = icon(isDark ? 'sun' : 'moon', 16);
-}
-
-applyTheme(currentTheme);
-
-document.getElementById('theme-btn').onclick = () => {
-  applyTheme({ auto: 'dark', dark: 'light', light: 'auto' }[currentTheme]);
-};
-
-document.querySelectorAll('.nav-btn').forEach(btn => {
-  btn.onclick = () => {
-    document.querySelectorAll('.nav-btn').forEach(b => b.setAttribute('aria-selected', 'false'));
-    document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
-    btn.setAttribute('aria-selected', 'true');
-    document.getElementById(btn.dataset.tab).classList.add('active');
-  };
-});
-
-function renderDash() {
-  const dash = document.getElementById('tab-dash');
-  if (!db.vehicles.length) {
-    dash.innerHTML = `
-      <div class="empty-state">
-        <div class="empty-left">
-          <div class="empty-eyebrow">${icon('gauge', 14)} Vehicle service tracker</div>
-          <h2 class="empty-heading">Never miss a service again.</h2>
-          <p class="empty-body">Add your vehicle, set a service interval, and log services as you go. ServiceDue tells you exactly when the next one is due.</p>
-          <div class="empty-actions">
-            <button class="btn btn-primary" id="empty-add">${icon('plus', 15)} Add vehicle</button>
-            <button class="btn btn-ghost" id="empty-sample">Load sample data</button>
-          </div>
-        </div>
-        <div class="empty-right">
-          <div class="empty-preview-row">
-            <span class="empty-preview-dot" style="background:var(--ok-rule)"></span>
-            <span class="empty-preview-label">Honda Activa · TN 09 AB 1234</span>
-            <span class="empty-preview-val">Up to date</span>
-          </div>
-          <div class="empty-preview-row">
-            <span class="empty-preview-dot" style="background:var(--soon-rule)"></span>
-            <span class="empty-preview-label">Hyundai i20 · TN 22 CD 5678</span>
-            <span class="empty-preview-val">Due in 24 days</span>
-          </div>
-          <div class="empty-preview-row">
-            <span class="empty-preview-dot" style="background:var(--over-rule)"></span>
-            <span class="empty-preview-label">Royal Enfield · TN 07 EF 9012</span>
-            <span class="empty-preview-val">Overdue 42 days</span>
-          </div>
-        </div>
-      </div>`;
-    document.getElementById('empty-add').onclick = () => openVehicleDlg();
-    document.getElementById('empty-sample').onclick = loadSample;
-    return;
-  }
-
-  const rows = db.vehicles.map(v => ({ v, p: predict(v) }));
-  const nOver = rows.filter(r => r.p.status === 'over').length;
-  const nSoon = rows.filter(r => r.p.status === 'soon').length;
-  const nOk   = rows.filter(r => r.p.status === 'ok' || r.p.status === 'none').length;
-
-  dash.innerHTML = `
-    <div class="summary-bar">
-      <div class="summary-label">${nOver}<span>Overdue</span></div>
-      <div class="summary-divider"></div>
-      <div class="summary-label">${nSoon}<span>Due soon</span></div>
-      <div class="summary-divider"></div>
-      <div class="summary-label">${nOk}<span>Up to date</span></div>
-      <div class="summary-bar-actions">
-        <button class="btn btn-primary" id="dash-add">${icon('plus', 15)} Add vehicle</button>
-      </div>
-    </div>
-    <div class="vehicle-list" id="vehicle-list">
-      ${rows.map(({ v, p }) => vehicleRow(v, p)).join('')}
-    </div>`;
-
-  document.getElementById('dash-add').onclick = () => openVehicleDlg();
-  document.getElementById('vehicle-list').addEventListener('click', onVehicleAction);
-}
-
-function vehicleRow(v, p) {
-  const kmText  = p.last ? (p.kmLeft > 0 ? `${fmtKm(p.kmLeft)} left` : `${fmtKm(-p.kmLeft)} over limit`) : '—';
-  const daysText= p.last ? (p.daysLeft >= 0 ? `${p.daysLeft}d left` : `${-p.daysLeft}d overdue`) : '—';
-  const nextKmTxt = p.last ? fmtKm(p.nextKm) : '—';
-  const nextDtTxt = p.last ? fmtDate(p.nextDate) : '—';
-  const lastTxt   = p.last ? `${fmtDate(p.last.date)} · ${fmtKm(p.last.km)}` : 'No services logged';
-
-  return `
-    <div class="vehicle-row ${p.status}" data-vid="${v.id}">
-      <div class="vehicle-row-rule"></div>
-      <div class="vehicle-row-body">
-        <div>
-          <div class="vehicle-number">${esc(v.number)}</div>
-          <div class="vehicle-meta">${esc(v.model)} · ${esc(v.owner)} · ${esc(v.year)}</div>
-          <span class="status-badge ${p.status}"><span class="status-dot"></span>${p.label}</span>
-        </div>
-        <div>
-          <div class="stat-label">Current reading</div>
-          <div class="stat-value">${fmtKm(v.km)}</div>
-          <div class="stat-sub">Last service: ${lastTxt}</div>
-        </div>
-        <div>
-          <div class="stat-label">Next service due</div>
-          <div class="stat-value ${p.status}">${nextKmTxt}</div>
-          <div class="stat-sub">${nextDtTxt} · ${kmText} · ${daysText}</div>
-        </div>
-      </div>
-      <div class="vehicle-row-actions">
-        <button class="btn btn-primary btn-sm" data-act="log"  data-vid="${v.id}">${icon('wrench', 13)} Log service</button>
-        <button class="btn btn-ghost   btn-sm" data-act="edit" data-vid="${v.id}">${icon('edit', 13)} Edit</button>
-        <button class="btn btn-danger  btn-sm" data-act="del"  data-vid="${v.id}">${icon('trash', 13)} Delete</button>
-      </div>
-    </div>`;
-}
-
-function onVehicleAction(e) {
-  const btn = e.target.closest('[data-act]');
-  if (!btn) return;
-  const v = db.vehicles.find(x => x.id === btn.dataset.vid);
-  if (!v) return;
-  if (btn.dataset.act === 'log')  openServiceDlg(v);
-  if (btn.dataset.act === 'edit') openVehicleDlg(v);
-  if (btn.dataset.act === 'del') {
-    if (!confirm(`Delete ${v.number} and all its service records?`)) return;
-    db.vehicles = db.vehicles.filter(x => x.id !== v.id);
-    db.services = db.services.filter(s => s.vid !== v.id);
-    save(); render(); toast('Vehicle removed');
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --paper:      #17161A;
+    --paper-mid:  #1E1D21;
+    --paper-rule: #2C2B30;
+    --ink:        #F0EDE8;
+    --ink-mute:   #9B9793;
+    --ink-faint:  #5C5956;
+    --accent:     #E05512;
+    --surface:    #1E1D21;
+    --ok-ink:     #6EC99A; --ok-bg:   #0D2318; --ok-rule:   #2E8A57;
+    --soon-ink:   #DEB96A; --soon-bg: #1F1800; --soon-rule: #A07000;
+    --over-ink:   #E88070; --over-bg: #200A06; --over-rule: #C8460A;
+    --none-ink:   #9B9793; --none-bg: #1E1D21; --none-rule: #3A3936;
   }
 }
 
-let histFilter = 'all';
-
-function renderHist() {
-  const hist = document.getElementById('tab-hist');
-  const svcs = db.services
-    .filter(s => histFilter === 'all' || s.vid === histFilter)
-    .sort((a, b) => b.date.localeCompare(a.date));
-  const getV  = id => db.vehicles.find(x => x.id === id);
-  const total = svcs.reduce((t, s) => t + (+s.cost || 0), 0);
-
-  const filterOpts = db.vehicles.map(v =>
-    `<option value="${v.id}" ${histFilter === v.id ? 'selected' : ''}>${esc(v.number)}</option>`
-  ).join('');
-
-  const tableBody = svcs.length
-    ? svcs.map(s => {
-        const v = getV(s.vid);
-        return `<tr>
-          <td class="mute">${fmtDate(s.date)}</td>
-          <td>${v ? `${esc(v.number)}<br><small style="color:var(--ink-faint)">${esc(v.model)}</small>` : '<em>Deleted</em>'}</td>
-          <td>${fmtKm(s.km)}</td>
-          <td>${esc(s.type)}</td>
-          <td class="mute">${esc(s.parts) || '—'}</td>
-          <td style="font-weight:600">₹${(+s.cost || 0).toLocaleString('en-IN')}</td>
-          <td class="col-actions"><button class="btn btn-danger btn-sm" data-del-s="${s.id}">${icon('trash', 13)}</button></td>
-        </tr>`;
-      }).join('')
-    : `<tr><td colspan="7" style="text-align:center;padding:var(--s5);color:var(--ink-mute)">No service records match this filter.</td></tr>`;
-
-  hist.innerHTML = `
-    <div class="hist-toolbar">
-      <div class="hist-toolbar-left">
-        <h2 class="hist-heading">Service history</h2>
-        <select class="hist-filter" id="hist-flt">
-          <option value="all">All vehicles</option>${filterOpts}
-        </select>
-      </div>
-      <div class="hist-toolbar-right">
-        <span class="hist-total">Total: <strong>₹${total.toLocaleString('en-IN')}</strong> across ${svcs.length} records</span>
-        <button class="btn btn-ghost btn-sm" id="csv-btn">${icon('download', 13)} Export CSV</button>
-      </div>
-    </div>
-    <div class="scroll-x">
-      <table class="data-table">
-        <thead><tr><th>Date</th><th>Vehicle</th><th>Reading</th><th>Service type</th><th>Parts replaced</th><th>Cost</th><th></th></tr></thead>
-        <tbody>${tableBody}</tbody>
-      </table>
-    </div>`;
-
-  document.getElementById('hist-flt').onchange = e => { histFilter = e.target.value; renderHist(); };
-  document.getElementById('csv-btn').onclick = exportCsv;
-  hist.querySelectorAll('[data-del-s]').forEach(btn => {
-    btn.onclick = () => {
-      if (!confirm('Remove this service record?')) return;
-      db.services = db.services.filter(s => s.id !== btn.dataset.delS);
-      save(); render(); toast('Record removed');
-    };
-  });
+:root[data-theme="dark"] {
+  --paper:      #17161A;
+  --paper-mid:  #1E1D21;
+  --paper-rule: #2C2B30;
+  --ink:        #F0EDE8;
+  --ink-mute:   #9B9793;
+  --ink-faint:  #5C5956;
+  --accent:     #E05512;
+  --surface:    #1E1D21;
+  --ok-ink:     #6EC99A; --ok-bg:   #0D2318; --ok-rule:   #2E8A57;
+  --soon-ink:   #DEB96A; --soon-bg: #1F1800; --soon-rule: #A07000;
+  --over-ink:   #E88070; --over-bg: #200A06; --over-rule: #C8460A;
+  --none-ink:   #9B9793; --none-bg: #1E1D21; --none-rule: #3A3936;
 }
 
-function exportCsv() {
-  const q = v => '"' + String(v ?? '').replace(/"/g, '""') + '"';
-  const head = ['Date','Vehicle number','Model','Kilometre reading','Service type','Parts replaced','Cost (INR)'];
-  const lines = db.services.map(s => {
-    const v = db.vehicles.find(x => x.id === s.vid) || {};
-    return [s.date, v.number, v.model, s.km, s.type, s.parts, s.cost].map(q).join(',');
-  });
-  const a = document.createElement('a');
-  a.href = URL.createObjectURL(new Blob([[head.map(q).join(','), ...lines].join('\n')], { type: 'text/csv' }));
-  a.download = 'servicedue-history.csv';
-  a.click();
-  toast('CSV downloaded');
+*, *::before, *::after { box-sizing: border-box; margin: 0; }
+
+body {
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--font-ui);
+  font-size: 15px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  min-height: 100vh;
 }
 
-function render() { renderDash(); renderHist(); }
+.app-wrap { max-width: 1080px; margin: 0 auto; padding: 0 var(--s3); }
 
-function openVehicleDlg(v) {
-  const isEdit = !!v;
-  document.getElementById('v-dlg-title').textContent = isEdit ? 'Edit vehicle' : 'Add vehicle';
-  const f = document.getElementById('v-form');
-  f.reset();
-  f.vid.value = isEdit ? v.id : '';
-  if (isEdit) {
-    f.owner.value          = v.owner;
-    f.number.value         = v.number;
-    f.model.value          = v.model;
-    f.vtype.value          = v.type;
-    f.year.value           = v.year;
-    f.km.value             = v.km;
-    f.intervalKm.value     = v.intervalKm;
-    f.intervalMonths.value = v.intervalMonths;
+.site-header {
+  border-bottom: 1px solid var(--paper-rule);
+  padding: var(--s2) 0;
+  position: sticky;
+  top: 0;
+  background: var(--paper);
+  z-index: 10;
+}
+
+.header-inner {
+  display: flex;
+  align-items: center;
+  gap: var(--s3);
+  flex-wrap: wrap;
+}
+
+.wordmark {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  flex-shrink: 0;
+}
+
+.wordmark-name {
+  font-family: var(--font-display);
+  font-size: 22px;
+  line-height: 1;
+  color: var(--ink);
+  letter-spacing: -0.3px;
+}
+
+.wordmark-rule {
+  width: 1px;
+  height: 16px;
+  background: var(--paper-rule);
+  align-self: center;
+}
+
+.wordmark-sub {
+  font-size: 12px;
+  color: var(--ink-faint);
+}
+
+.header-nav { display: flex; gap: 2px; flex: 1; flex-wrap: wrap; }
+
+.nav-btn {
+  background: none;
+  border: none;
+  font-family: var(--font-ui);
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--ink-mute);
+  padding: var(--s1) var(--s2);
+  cursor: pointer;
+  border-radius: var(--radius);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  transition: color .15s, background .15s;
+  white-space: nowrap;
+}
+
+.nav-btn:hover { color: var(--ink); background: var(--paper-mid); }
+.nav-btn[aria-selected="true"] { color: var(--ink); font-weight: 600; background: var(--paper-mid); }
+
+.header-actions { display: flex; align-items: center; gap: var(--s1); margin-left: auto; }
+
+.theme-toggle {
+  background: none;
+  border: 1px solid var(--paper-rule);
+  border-radius: var(--radius);
+  padding: 6px;
+  cursor: pointer;
+  color: var(--ink-mute);
+  display: flex;
+  align-items: center;
+  transition: color .15s, border-color .15s;
+}
+
+.theme-toggle:hover { color: var(--ink); border-color: var(--ink-mute); }
+
+button, input, select { font-family: var(--font-ui); }
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 14px;
+  font-weight: 600;
+  padding: 8px 16px;
+  border-radius: var(--radius);
+  border: 1px solid transparent;
+  cursor: pointer;
+  transition: background .15s, color .15s, border-color .15s;
+  white-space: nowrap;
+  line-height: 1.4;
+}
+
+.btn-primary { background: var(--ink); color: var(--paper); border-color: var(--ink); }
+.btn-primary:hover { background: var(--accent); border-color: var(--accent); }
+
+.btn-ghost { background: transparent; color: var(--ink-mute); border-color: var(--paper-rule); }
+.btn-ghost:hover { color: var(--ink); border-color: var(--ink-mute); background: var(--paper-mid); }
+
+.btn-danger { background: transparent; color: var(--over-ink); border-color: transparent; font-weight: 500; }
+.btn-danger:hover { background: var(--over-bg); border-color: var(--over-rule); }
+
+.btn-sm { font-size: 13px; padding: 5px 12px; }
+
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+.main-content { padding: var(--s4) 0 var(--s8); }
+
+.tab-panel { display: none; }
+.tab-panel.active { display: block; }
+
+.summary-bar {
+  display: flex;
+  align-items: baseline;
+  gap: var(--s4);
+  padding: var(--s3) 0 var(--s4);
+  border-bottom: 1px solid var(--paper-rule);
+  margin-bottom: var(--s4);
+  flex-wrap: wrap;
+}
+
+.summary-label {
+  font-family: var(--font-display);
+  font-size: 36px;
+  line-height: 1;
+  letter-spacing: -1px;
+  color: var(--ink);
+}
+
+.summary-label span {
+  display: block;
+  font-family: var(--font-ui);
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 0;
+  color: var(--ink-mute);
+  margin-top: 2px;
+}
+
+.summary-divider { width: 1px; height: 36px; background: var(--paper-rule); align-self: center; }
+.summary-bar-actions { margin-left: auto; }
+
+.vehicle-list { display: flex; flex-direction: column; }
+
+.vehicle-row {
+  display: grid;
+  grid-template-columns: 4px 1fr auto;
+  align-items: stretch;
+  border-bottom: 1px solid var(--paper-rule);
+  background: var(--surface);
+  transition: background .12s;
+}
+
+.vehicle-row:first-child { border-top: 1px solid var(--paper-rule); }
+.vehicle-row:hover { background: var(--paper-mid); }
+
+.vehicle-row-rule { width: 4px; border-radius: 2px 0 0 2px; }
+.vehicle-row.ok   .vehicle-row-rule { background: var(--ok-rule); }
+.vehicle-row.soon .vehicle-row-rule { background: var(--soon-rule); }
+.vehicle-row.over .vehicle-row-rule { background: var(--over-rule); }
+.vehicle-row.none .vehicle-row-rule { background: var(--none-rule); }
+
+.vehicle-row-body {
+  padding: var(--s3);
+  display: grid;
+  grid-template-columns: 220px 1fr 1fr;
+  gap: var(--s3);
+  align-items: center;
+}
+
+@media (max-width: 700px) {
+  .vehicle-row-body { grid-template-columns: 1fr; gap: var(--s2); }
+}
+
+.vehicle-number {
+  font-family: var(--font-display);
+  font-size: 20px;
+  letter-spacing: -0.3px;
+  color: var(--ink);
+  line-height: 1.2;
+}
+
+.vehicle-meta { font-size: 13px; color: var(--ink-mute); margin-top: 2px; }
+
+.stat-label { font-size: 11px; color: var(--ink-faint); font-weight: 500; margin-bottom: 2px; }
+.stat-value { font-size: 15px; font-weight: 600; color: var(--ink); }
+.stat-value.ok   { color: var(--ok-ink); }
+.stat-value.soon { color: var(--soon-ink); }
+.stat-value.over { color: var(--over-ink); }
+.stat-sub { font-size: 12px; color: var(--ink-faint); margin-top: 1px; }
+
+.vehicle-row-actions {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  justify-content: center;
+  gap: var(--s1);
+  padding: var(--s2);
+  border-left: 1px solid var(--paper-rule);
+  min-width: 128px;
+}
+
+.status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 3px 8px;
+  border-radius: 2px;
+  margin-top: 6px;
+}
+
+.status-badge.ok   { background: var(--ok-bg);   color: var(--ok-ink); }
+.status-badge.soon { background: var(--soon-bg);  color: var(--soon-ink); }
+.status-badge.over { background: var(--over-bg);  color: var(--over-ink); }
+.status-badge.none { background: var(--none-bg);  color: var(--none-ink); }
+
+.status-dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
+.status-badge.ok   .status-dot { background: var(--ok-rule); }
+.status-badge.soon .status-dot { background: var(--soon-rule); }
+.status-badge.over .status-dot { background: var(--over-rule); }
+.status-badge.none .status-dot { background: var(--none-rule); }
+
+.empty-state {
+  padding: var(--s7) 0 var(--s6);
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--s6);
+  align-items: center;
+}
+
+@media (max-width: 600px) { .empty-state { grid-template-columns: 1fr; } }
+
+.empty-eyebrow {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--accent);
+  margin-bottom: var(--s2);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.empty-heading {
+  font-family: var(--font-display);
+  font-size: 36px;
+  line-height: 1.1;
+  letter-spacing: -0.5px;
+  color: var(--ink);
+  margin-bottom: var(--s2);
+}
+
+.empty-body {
+  font-size: 15px;
+  color: var(--ink-mute);
+  line-height: 1.6;
+  max-width: 36ch;
+  margin-bottom: var(--s3);
+}
+
+.empty-actions { display: flex; gap: var(--s1); flex-wrap: wrap; }
+
+.empty-right {
+  border: 1px solid var(--paper-rule);
+  border-radius: var(--radius);
+  padding: var(--s3);
+  background: var(--surface);
+}
+
+.empty-preview-row {
+  display: flex;
+  align-items: center;
+  gap: var(--s2);
+  padding: var(--s1) 0;
+  border-bottom: 1px solid var(--paper-rule);
+  font-size: 13px;
+}
+
+.empty-preview-row:last-child { border-bottom: none; }
+.empty-preview-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+.empty-preview-label { color: var(--ink-mute); flex: 1; }
+.empty-preview-val { font-weight: 600; color: var(--ink); }
+
+.hist-toolbar {
+  display: flex;
+  align-items: center;
+  gap: var(--s2);
+  flex-wrap: wrap;
+  padding: var(--s3) 0;
+  border-bottom: 1px solid var(--paper-rule);
+  margin-bottom: var(--s3);
+}
+
+.hist-toolbar-left { display: flex; align-items: center; gap: var(--s2); flex: 1; flex-wrap: wrap; }
+.hist-toolbar-right { display: flex; align-items: center; gap: var(--s2); }
+
+.hist-heading { font-family: var(--font-display); font-size: 24px; letter-spacing: -0.3px; }
+
+.hist-filter {
+  font-family: var(--font-ui);
+  font-size: 13px;
+  color: var(--ink);
+  background: var(--surface);
+  border: 1px solid var(--paper-rule);
+  border-radius: var(--radius);
+  padding: 5px 10px;
+  cursor: pointer;
+}
+
+.hist-total { font-size: 13px; font-weight: 600; color: var(--ink-mute); }
+.hist-total strong { color: var(--ink); }
+
+.data-table { width: 100%; border-collapse: collapse; font-size: 14px; }
+
+.data-table thead th {
+  text-align: left;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--ink-faint);
+  letter-spacing: 0.03em;
+  padding: var(--s1) var(--s2);
+  border-bottom: 1px solid var(--paper-rule);
+  background: var(--paper);
+  position: sticky;
+  top: 57px;
+}
+
+.data-table tbody tr { border-bottom: 1px solid var(--paper-mid); background: var(--surface); }
+.data-table tbody tr:nth-child(even) { background: var(--paper); }
+.data-table tbody tr:hover { background: var(--paper-mid); }
+.data-table td { padding: 10px var(--s2); color: var(--ink); vertical-align: middle; }
+.data-table td.mute { color: var(--ink-mute); }
+.data-table .col-actions { text-align: right; }
+.scroll-x { overflow-x: auto; }
+
+dialog {
+  border: 1px solid var(--paper-rule);
+  border-radius: var(--radius);
+  padding: 0;
+  width: min(520px, 95vw);
+  background: var(--surface);
+  color: var(--ink);
+  box-shadow: 0 8px 40px rgba(0,0,0,.18);
+}
+
+dialog::backdrop { background: rgba(10,8,6,.55); }
+
+.dlg-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--s3) var(--s3) var(--s2);
+  border-bottom: 1px solid var(--paper-rule);
+}
+
+.dlg-title { font-family: var(--font-display); font-size: 20px; letter-spacing: -0.2px; }
+
+.dlg-close {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--ink-mute);
+  padding: 4px;
+  border-radius: var(--radius);
+  display: flex;
+  align-items: center;
+}
+
+.dlg-close:hover { color: var(--ink); background: var(--paper-mid); }
+
+.dlg-body { padding: var(--s3); display: flex; flex-direction: column; gap: var(--s2); }
+
+.dlg-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--s1);
+  padding: var(--s2) var(--s3);
+  border-top: 1px solid var(--paper-rule);
+}
+
+.field { display: flex; flex-direction: column; gap: 4px; }
+.field-row { display: grid; gap: var(--s2); grid-template-columns: 1fr 1fr; }
+
+@media (max-width: 480px) { .field-row { grid-template-columns: 1fr; } }
+
+.field label { font-size: 13px; font-weight: 600; color: var(--ink-mute); }
+
+.field input,
+.field select {
+  background: var(--paper);
+  border: 1px solid var(--paper-rule);
+  border-radius: var(--radius);
+  padding: 8px 10px;
+  font-size: 14px;
+  color: var(--ink);
+  width: 100%;
+  transition: border-color .15s;
+}
+
+.field input:focus,
+.field select:focus { border-color: var(--ink-mute); outline: none; background: var(--surface); }
+
+#toast-wrap {
+  position: fixed;
+  bottom: var(--s4);
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--s1);
+  z-index: 100;
+  pointer-events: none;
+}
+
+.toast {
+  background: var(--ink);
+  color: var(--paper);
+  font-size: 13px;
+  font-weight: 500;
+  padding: 10px 18px;
+  border-radius: var(--radius);
+  animation: toast-in .2s ease, toast-out .3s ease 2.2s forwards;
+}
+
+@keyframes toast-in  { from { opacity:0; transform:translateY(8px); } to { opacity:1; transform:none; } }
+@keyframes toast-out { to   { opacity:0; transform:translateY(4px); } }
+
+@media (prefers-reduced-motion: reduce) {
+  .toast { animation: none; }
+  .vehicle-row, .btn { transition: none; }
+}
+
+.hide { display: none !important; }
+
+/* ─── Search page ─────────────────────────────────────────── */
+.search-header {
+  padding: var(--s3) 0 var(--s3);
+  border-bottom: 1px solid var(--paper-rule);
+  margin-bottom: var(--s3);
+}
+
+.search-sub {
+  font-size: 14px;
+  color: var(--ink-mute);
+  margin-top: 4px;
+}
+
+.search-bar-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s2);
+  margin-bottom: var(--s3);
+}
+
+.search-input-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.search-icon {
+  position: absolute;
+  left: 12px;
+  color: var(--ink-faint);
+  pointer-events: none;
+  flex-shrink: 0;
+}
+
+.search-input {
+  width: 100%;
+  background: var(--surface);
+  border: 1px solid var(--paper-rule);
+  border-radius: var(--radius);
+  padding: 11px 40px 11px 38px;
+  font-size: 15px;
+  color: var(--ink);
+  transition: border-color .15s;
+  font-family: var(--font-ui);
+}
+
+.search-input:focus {
+  outline: none;
+  border-color: var(--ink-mute);
+}
+
+.search-input::placeholder { color: var(--ink-faint); }
+
+.search-clear {
+  position: absolute;
+  right: 8px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--ink-faint);
+  display: flex;
+  align-items: center;
+  padding: 4px;
+  border-radius: var(--radius);
+}
+
+.search-clear:hover { color: var(--ink); background: var(--paper-mid); }
+
+.search-filters {
+  display: flex;
+  gap: var(--s1);
+  flex-wrap: wrap;
+}
+
+.search-meta {
+  font-size: 13px;
+  color: var(--ink-mute);
+  padding: 0 0 var(--s2);
+  border-bottom: 1px solid var(--paper-rule);
+  margin-bottom: var(--s2);
+}
+
+.search-meta strong { color: var(--ink); }
+
+/* Result cards — one per vehicle that has matching services */
+.search-vehicle-group {
+  margin-bottom: var(--s4);
+}
+
+.search-vehicle-label {
+  display: flex;
+  align-items: center;
+  gap: var(--s2);
+  padding: var(--s1) 0 var(--s2);
+  border-bottom: 1px solid var(--paper-rule);
+  margin-bottom: var(--s1);
+}
+
+.search-vehicle-name {
+  font-family: var(--font-display);
+  font-size: 18px;
+  letter-spacing: -0.2px;
+}
+
+.search-vehicle-sub { font-size: 13px; color: var(--ink-mute); }
+
+.search-match-count {
+  margin-left: auto;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ink-faint);
+}
+
+/* Highlight matched text */
+mark {
+  background: #FFE484;
+  color: var(--ink);
+  border-radius: 2px;
+  padding: 0 2px;
+}
+
+:root[data-theme="dark"] mark,
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) mark {
+    background: #6B5000;
+    color: #FFE484;
   }
-  document.getElementById('v-dlg').showModal();
 }
 
-document.getElementById('v-form').onsubmit = e => {
-  e.preventDefault();
-  const f = e.target;
-  const data = {
-    owner: f.owner.value.trim(),
-    number: f.number.value.trim().toUpperCase(),
-    model: f.model.value.trim(),
-    type: f.vtype.value,
-    year: +f.year.value,
-    km: +f.km.value,
-    intervalKm: +f.intervalKm.value,
-    intervalMonths: +f.intervalMonths.value,
-  };
-  if (f.vid.value) {
-    Object.assign(db.vehicles.find(v => v.id === f.vid.value), data);
-    toast('Vehicle updated');
-  } else {
-    db.vehicles.push({ id: uid(), ...data });
-    toast('Vehicle added');
-  }
-  document.getElementById('v-dlg').close();
-  save(); render();
-};
-
-function openServiceDlg(v) {
-  document.getElementById('s-dlg-title').textContent = `Log service · ${v.number}`;
-  const f = document.getElementById('s-form');
-  f.reset();
-  f.svid.value  = v.id;
-  f.sdate.value = today();
-  f.skm.value   = v.km;
-  document.getElementById('s-dlg').showModal();
+.search-empty {
+  padding: var(--s6) 0;
+  text-align: center;
+  color: var(--ink-mute);
 }
 
-document.getElementById('s-form').onsubmit = e => {
-  e.preventDefault();
-  const f = e.target;
-  const km = +f.skm.value;
-  const v = db.vehicles.find(x => x.id === f.svid.value);
-  db.services.push({
-    id: uid(), vid: f.svid.value, date: f.sdate.value,
-    km, type: f.stype.value, parts: f.sparts.value.trim(), cost: +f.scost.value || 0,
-  });
-  if (v && km > v.km) v.km = km;
-  document.getElementById('s-dlg').close();
-  save(); render();
-  toast('Service logged');
-};
+.search-empty strong { display: block; font-size: 16px; color: var(--ink); margin-bottom: 4px; }
 
-document.querySelectorAll('[data-close-dlg]').forEach(btn => {
-  btn.onclick = () => btn.closest('dialog').close();
-});
-
-document.getElementById('header-add').onclick = () => openVehicleDlg();
-
-function loadSample() {
-  const a = uid(), b = uid(), c = uid();
-  const ago = m => addMonths(today(), -m);
-  db = {
-    vehicles: [
-      { id:a, owner:'Arun Kumar', number:'TN 09 AB 1234', model:'Honda Activa 6G',          type:'Two-wheeler', year:2021, km:24600, intervalKm:5000,  intervalMonths:6  },
-      { id:b, owner:'Meena S',    number:'TN 22 CD 5678', model:'Hyundai i20 Asta',          type:'Car',         year:2019, km:61200, intervalKm:10000, intervalMonths:12 },
-      { id:c, owner:'Ravi P',     number:'TN 07 EF 9012', model:'Royal Enfield Classic 350', type:'Two-wheeler', year:2018, km:38000, intervalKm:3000,  intervalMonths:6  },
-    ],
-    services: [
-      { id:uid(), vid:a, date:ago(4),  km:20000, type:'Regular service', parts:'Engine oil, air filter', cost:1200 },
-      { id:uid(), vid:b, date:ago(5),  km:55000, type:'Regular service', parts:'Oil filter, brake pads', cost:6400 },
-      { id:uid(), vid:b, date:ago(14), km:46000, type:'Oil change',       parts:'Engine oil, oil filter', cost:3200 },
-      { id:uid(), vid:c, date:ago(8),  km:33500, type:'Oil change',       parts:'Engine oil',             cost:900  },
-    ],
-  };
-  save(); render(); toast('Sample data loaded');
+.search-prompt {
+  padding: var(--s6) 0;
+  text-align: center;
+  color: var(--ink-faint);
+  font-size: 14px;
 }
-
-render();
