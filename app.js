@@ -32,12 +32,14 @@ const fmtDate = s => new Date(s+'T00:00:00').toLocaleDateString('en-IN', { day:'
 const fmtKm = n => Number(n).toLocaleString('en-IN') + ' km';
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 
-/* Highlight all occurrences of a query inside text */
-function highlight(text, query) {
-  if (!query) return esc(text);
-  const safe = esc(text);
-  const safeQ = query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-  return safe.replace(new RegExp(safeQ, 'gi'), m => `<mark>${m}</mark>`);
+/* Highlight query terms inside plain text, returns safe HTML */
+function highlight(plainText, query) {
+  const escaped = esc(plainText);
+  if (!query) return escaped;
+  const terms = query.trim().split(/\s+/).filter(Boolean);
+  if (!terms.length) return escaped;
+  const pattern = terms.map(t => t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|');
+  return escaped.replace(new RegExp(pattern, 'gi'), m => `<mark>${m}</mark>`);
 }
 
 /* ─── Prediction ─────────────────────────────────────────────── */
@@ -50,8 +52,8 @@ function predict(v) {
   const kmLeft   = nextKm - v.km;
   const daysLeft = daysBetween(today(), nextDate);
   let status = 'ok', label = 'Up to date';
-  if (kmLeft <= 0 || daysLeft < 0)         { status = 'over';  label = 'Overdue'; }
-  else if (kmLeft <= 500 || daysLeft <= 30) { status = 'soon';  label = 'Due soon'; }
+  if (kmLeft <= 0 || daysLeft < 0)         { status = 'over'; label = 'Overdue'; }
+  else if (kmLeft <= 500 || daysLeft <= 30) { status = 'soon'; label = 'Due soon'; }
   return { status, label, last, nextKm, nextDate, kmLeft, daysLeft };
 }
 
@@ -272,12 +274,9 @@ function renderHist() {
 }
 
 /* ─── Search tab ─────────────────────────────────────────────── */
-
-// Populate the vehicle dropdown in the search filters
 function populateSearchVehicleFilter() {
   const sel = document.getElementById('sf-vehicle');
   const current = sel.value;
-  // Remove all options except the first "All vehicles"
   while (sel.options.length > 1) sel.remove(1);
   db.vehicles.forEach(v => {
     const opt = document.createElement('option');
@@ -285,7 +284,8 @@ function populateSearchVehicleFilter() {
     opt.textContent = `${v.number} — ${v.model}`;
     sel.appendChild(opt);
   });
-  sel.value = current;
+  // Restore selection if still valid
+  if ([...sel.options].some(o => o.value === current)) sel.value = current;
 }
 
 function getSearchParams() {
@@ -303,33 +303,45 @@ function sortServices(svcs, sort) {
     if (sort === 'cost-desc') return (+b.cost || 0) - (+a.cost || 0);
     if (sort === 'cost-asc')  return (+a.cost || 0) - (+b.cost || 0);
     if (sort === 'km-desc')   return (+b.km || 0) - (+a.km || 0);
-    return b.date.localeCompare(a.date); // date-desc default
+    return b.date.localeCompare(a.date);
   });
 }
 
 function serviceMatchesQuery(s, v, query) {
   if (!query) return true;
-  const haystack = [
-    v?.number, v?.model, v?.owner, v?.type, String(v?.year || ''),
-    s.type, s.parts, s.date, String(s.km || ''), String(s.cost || ''),
+  // Build a single searchable string from all relevant fields
+  const fields = [
+    v ? v.number  : '',
+    v ? v.model   : '',
+    v ? v.owner   : '',
+    v ? v.type    : '',
+    v ? String(v.year || '') : '',
+    s.type  || '',
+    s.parts || '',
+    s.date  || '',
+    String(s.km   || ''),
+    String(s.cost || ''),
   ].join(' ').toLowerCase();
-  // Support multi-word: every word must appear somewhere
-  return query.split(/\s+/).every(word => haystack.includes(word));
+
+  // Every typed word must be found somewhere in the fields
+  return query.split(/\s+/).filter(Boolean).every(word => fields.includes(word));
 }
 
 function renderSearch() {
   const resultsEl = document.getElementById('search-results');
+  if (!resultsEl) return;
+
   const { query, vehicle, type, sort } = getSearchParams();
 
-  // Show prompt if nothing entered and no filters set
+  // No input at all — show prompt
   if (!query && !vehicle && !type) {
     resultsEl.innerHTML = `<div class="search-prompt">Start typing to search across all repair records.</div>`;
     return;
   }
 
-  // Filter services
+  // Apply all filters
   let matched = db.services.filter(s => {
-    const v = db.vehicles.find(x => x.id === s.vid);
+    const v = db.vehicles.find(x => x.id === s.vid) || null;
     if (vehicle && s.vid !== vehicle) return false;
     if (type    && s.type !== type)   return false;
     return serviceMatchesQuery(s, v, query);
@@ -346,10 +358,14 @@ function renderSearch() {
     return;
   }
 
-  // Group by vehicle
+  // Group matched services by vehicle id, preserving sort order
+  const groupOrder = [];
   const groups = {};
   matched.forEach(s => {
-    if (!groups[s.vid]) groups[s.vid] = [];
+    if (!groups[s.vid]) {
+      groups[s.vid] = [];
+      groupOrder.push(s.vid);
+    }
     groups[s.vid].push(s);
   });
 
@@ -357,23 +373,28 @@ function renderSearch() {
 
   let html = `<div class="search-meta">${matched.length} record${matched.length !== 1 ? 's' : ''} found · Total cost <strong>₹${totalCost.toLocaleString('en-IN')}</strong></div>`;
 
-  Object.entries(groups).forEach(([vid, svcs]) => {
-    const v = db.vehicles.find(x => x.id === vid);
-    const vName = v ? `${v.number}` : 'Deleted vehicle';
-    const vSub  = v ? `${v.model} · ${v.owner} · ${v.type}` : '';
+  groupOrder.forEach(vid => {
+    const svcs = groups[vid];
+    const v = db.vehicles.find(x => x.id === vid) || null;
+
+    // Vehicle header fields — highlight query terms
+    const vNumber = v ? v.number : 'Deleted vehicle';
+    const vSub    = v ? `${v.model} · ${v.owner} · ${v.type} · ${v.year}` : '';
 
     const rows = svcs.map(s => {
-      const dateH  = highlight(fmtDate(s.date), query);
-      const typeH  = highlight(s.type, query);
-      const partsH = highlight(s.parts || '—', query);
-      const costH  = highlight(`₹${(+s.cost || 0).toLocaleString('en-IN')}`, query);
+      // Each cell: use plain text source, then highlight
+      const dateCell  = highlight(fmtDate(s.date),                   query);
+      const kmCell    = fmtKm(s.km);                                 // km numbers don't need highlighting
+      const typeCell  = highlight(s.type || '',                      query);
+      const partsCell = highlight(s.parts || '—',                    query);
+      const costCell  = `₹${(+s.cost || 0).toLocaleString('en-IN')}`;
 
       return `<tr>
-        <td class="mute">${dateH}</td>
-        <td>${fmtKm(s.km)}</td>
-        <td>${typeH}</td>
-        <td class="mute">${partsH}</td>
-        <td style="font-weight:600">${costH}</td>
+        <td class="mute">${dateCell}</td>
+        <td>${kmCell}</td>
+        <td>${typeCell}</td>
+        <td class="mute">${partsCell}</td>
+        <td style="font-weight:600">${costCell}</td>
       </tr>`;
     }).join('');
 
@@ -381,14 +402,22 @@ function renderSearch() {
       <div class="search-vehicle-group">
         <div class="search-vehicle-label">
           <div>
-            <div class="search-vehicle-name">${highlight(vName, query)}</div>
+            <div class="search-vehicle-name">${highlight(vNumber, query)}</div>
             ${vSub ? `<div class="search-vehicle-sub">${highlight(vSub, query)}</div>` : ''}
           </div>
           <span class="search-match-count">${svcs.length} record${svcs.length !== 1 ? 's' : ''}</span>
         </div>
         <div class="scroll-x">
           <table class="data-table">
-            <thead><tr><th>Date</th><th>Reading</th><th>Service type</th><th>Parts replaced</th><th>Cost</th></tr></thead>
+            <thead>
+              <tr>
+                <th>Date</th>
+                <th>Reading</th>
+                <th>Service type</th>
+                <th>Parts replaced</th>
+                <th>Cost</th>
+              </tr>
+            </thead>
             <tbody>${rows}</tbody>
           </table>
         </div>
@@ -398,13 +427,13 @@ function renderSearch() {
   resultsEl.innerHTML = html;
 }
 
-// Wire up search input and filters
+// Debounced search input
 let searchTimer;
 document.getElementById('search-input').addEventListener('input', e => {
   const val = e.target.value;
   document.getElementById('search-clear').classList.toggle('hide', !val);
   clearTimeout(searchTimer);
-  searchTimer = setTimeout(renderSearch, 180); // debounce
+  searchTimer = setTimeout(renderSearch, 180);
 });
 
 document.getElementById('search-clear').onclick = () => {
@@ -436,7 +465,6 @@ function exportCsv() {
 function render() {
   renderDash();
   renderHist();
-  // Re-render search only if that tab is currently active
   if (document.getElementById('tab-search').classList.contains('active')) {
     populateSearchVehicleFilter();
     renderSearch();
@@ -467,13 +495,13 @@ document.getElementById('v-form').onsubmit = e => {
   e.preventDefault();
   const f = e.target;
   const data = {
-    owner: f.owner.value.trim(),
-    number: f.number.value.trim().toUpperCase(),
-    model: f.model.value.trim(),
-    type: f.vtype.value,
-    year: +f.year.value,
-    km: +f.km.value,
-    intervalKm: +f.intervalKm.value,
+    owner:          f.owner.value.trim(),
+    number:         f.number.value.trim().toUpperCase(),
+    model:          f.model.value.trim(),
+    type:           f.vtype.value,
+    year:           +f.year.value,
+    km:             +f.km.value,
+    intervalKm:     +f.intervalKm.value,
     intervalMonths: +f.intervalMonths.value,
   };
   if (f.vid.value) {
@@ -504,8 +532,13 @@ document.getElementById('s-form').onsubmit = e => {
   const km = +f.skm.value;
   const v = db.vehicles.find(x => x.id === f.svid.value);
   db.services.push({
-    id: uid(), vid: f.svid.value, date: f.sdate.value,
-    km, type: f.stype.value, parts: f.sparts.value.trim(), cost: +f.scost.value || 0,
+    id:    uid(),
+    vid:   f.svid.value,
+    date:  f.sdate.value,
+    km,
+    type:  f.stype.value,
+    parts: f.sparts.value.trim(),
+    cost:  +f.scost.value || 0,
   });
   if (v && km > v.km) v.km = km;
   document.getElementById('s-dlg').close();
@@ -545,4 +578,5 @@ function loadSample() {
 }
 
 /* ─── Init ───────────────────────────────────────────────────── */
+populateSearchVehicleFilter(); // populate on load, not just on tab click
 render();
