@@ -113,10 +113,7 @@ body {
   align-self: center;
 }
 
-.wordmark-sub {
-  font-size: 12px;
-  color: var(--ink-faint);
-}
+.wordmark-sub { font-size: 12px; color: var(--ink-faint); }
 
 .header-nav { display: flex; gap: 2px; flex: 1; flex-wrap: wrap; }
 
@@ -404,8 +401,6 @@ button, input, select { font-family: var(--font-ui); }
   padding: var(--s1) var(--s2);
   border-bottom: 1px solid var(--paper-rule);
   background: var(--paper);
-  position: sticky;
-  top: 57px;
 }
 
 .data-table tbody tr { border-bottom: 1px solid var(--paper-mid); background: var(--surface); }
@@ -523,11 +518,7 @@ dialog::backdrop { background: rgba(10,8,6,.55); }
   margin-bottom: var(--s3);
 }
 
-.search-sub {
-  font-size: 14px;
-  color: var(--ink-mute);
-  margin-top: 4px;
-}
+.search-sub { font-size: 14px; color: var(--ink-mute); margin-top: 4px; }
 
 .search-bar-wrap {
   display: flex;
@@ -547,7 +538,6 @@ dialog::backdrop { background: rgba(10,8,6,.55); }
   left: 12px;
   color: var(--ink-faint);
   pointer-events: none;
-  flex-shrink: 0;
 }
 
 .search-input {
@@ -562,11 +552,7 @@ dialog::backdrop { background: rgba(10,8,6,.55); }
   font-family: var(--font-ui);
 }
 
-.search-input:focus {
-  outline: none;
-  border-color: var(--ink-mute);
-}
-
+.search-input:focus { outline: none; border-color: var(--ink-mute); }
 .search-input::placeholder { color: var(--ink-faint); }
 
 .search-clear {
@@ -584,11 +570,7 @@ dialog::backdrop { background: rgba(10,8,6,.55); }
 
 .search-clear:hover { color: var(--ink); background: var(--paper-mid); }
 
-.search-filters {
-  display: flex;
-  gap: var(--s1);
-  flex-wrap: wrap;
-}
+.search-filters { display: flex; gap: var(--s1); flex-wrap: wrap; }
 
 .search-meta {
   font-size: 13px;
@@ -600,10 +582,7 @@ dialog::backdrop { background: rgba(10,8,6,.55); }
 
 .search-meta strong { color: var(--ink); }
 
-/* Result cards — one per vehicle that has matching services */
-.search-vehicle-group {
-  margin-bottom: var(--s4);
-}
+.search-vehicle-group { margin-bottom: var(--s4); }
 
 .search-vehicle-label {
   display: flex;
@@ -629,7 +608,6 @@ dialog::backdrop { background: rgba(10,8,6,.55); }
   color: var(--ink-faint);
 }
 
-/* Highlight matched text */
 mark {
   background: #FFE484;
   color: var(--ink);
@@ -637,13 +615,7 @@ mark {
   padding: 0 2px;
 }
 
-:root[data-theme="dark"] mark,
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) mark {
-    background: #6B5000;
-    color: #FFE484;
-  }
-}
+:root[data-theme="dark"] mark { background: #6B5000; color: #FFE484; }
 
 .search-empty {
   padding: var(--s6) 0;
