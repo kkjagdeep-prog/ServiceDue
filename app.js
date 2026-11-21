@@ -13,7 +13,7 @@ const icon = (name, size = 16) => {
 };
 
 /* ─── Storage ────────────────────────────────────────────────── */
-const KEY = 'servicedue.v2';
+const KEY = 'servicedue.v3';
 const uid = () => Math.random().toString(36).slice(2, 9);
 
 let db = (() => {
@@ -32,9 +32,9 @@ const fmtDate = s => new Date(s+'T00:00:00').toLocaleDateString('en-IN', { day:'
 const fmtKm = n => Number(n).toLocaleString('en-IN') + ' km';
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 
-/* Highlight query terms inside plain text, returns safe HTML */
+/* Highlight query terms inside plain text — returns safe HTML */
 function highlight(plainText, query) {
-  const escaped = esc(plainText);
+  const escaped = esc(String(plainText ?? ''));
   if (!query) return escaped;
   const terms = query.trim().split(/\s+/).filter(Boolean);
   if (!terms.length) return escaped;
@@ -284,7 +284,6 @@ function populateSearchVehicleFilter() {
     opt.textContent = `${v.number} — ${v.model}`;
     sel.appendChild(opt);
   });
-  // Restore selection if still valid
   if ([...sel.options].some(o => o.value === current)) sel.value = current;
 }
 
@@ -309,7 +308,6 @@ function sortServices(svcs, sort) {
 
 function serviceMatchesQuery(s, v, query) {
   if (!query) return true;
-  // Build a single searchable string from all relevant fields
   const fields = [
     v ? v.number  : '',
     v ? v.model   : '',
@@ -322,8 +320,6 @@ function serviceMatchesQuery(s, v, query) {
     String(s.km   || ''),
     String(s.cost || ''),
   ].join(' ').toLowerCase();
-
-  // Every typed word must be found somewhere in the fields
   return query.split(/\s+/).filter(Boolean).every(word => fields.includes(word));
 }
 
@@ -333,13 +329,11 @@ function renderSearch() {
 
   const { query, vehicle, type, sort } = getSearchParams();
 
-  // No input at all — show prompt
   if (!query && !vehicle && !type) {
     resultsEl.innerHTML = `<div class="search-prompt">Start typing to search across all repair records.</div>`;
     return;
   }
 
-  // Apply all filters
   let matched = db.services.filter(s => {
     const v = db.vehicles.find(x => x.id === s.vid) || null;
     if (vehicle && s.vid !== vehicle) return false;
@@ -358,14 +352,11 @@ function renderSearch() {
     return;
   }
 
-  // Group matched services by vehicle id, preserving sort order
+  /* Group by vehicle, keeping sort order */
   const groupOrder = [];
   const groups = {};
   matched.forEach(s => {
-    if (!groups[s.vid]) {
-      groups[s.vid] = [];
-      groupOrder.push(s.vid);
-    }
+    if (!groups[s.vid]) { groups[s.vid] = []; groupOrder.push(s.vid); }
     groups[s.vid].push(s);
   });
 
@@ -376,27 +367,16 @@ function renderSearch() {
   groupOrder.forEach(vid => {
     const svcs = groups[vid];
     const v = db.vehicles.find(x => x.id === vid) || null;
-
-    // Vehicle header fields — highlight query terms
     const vNumber = v ? v.number : 'Deleted vehicle';
     const vSub    = v ? `${v.model} · ${v.owner} · ${v.type} · ${v.year}` : '';
 
-    const rows = svcs.map(s => {
-      // Each cell: use plain text source, then highlight
-      const dateCell  = highlight(fmtDate(s.date),                   query);
-      const kmCell    = fmtKm(s.km);                                 // km numbers don't need highlighting
-      const typeCell  = highlight(s.type || '',                      query);
-      const partsCell = highlight(s.parts || '—',                    query);
-      const costCell  = `₹${(+s.cost || 0).toLocaleString('en-IN')}`;
-
-      return `<tr>
-        <td class="mute">${dateCell}</td>
-        <td>${kmCell}</td>
-        <td>${typeCell}</td>
-        <td class="mute">${partsCell}</td>
-        <td style="font-weight:600">${costCell}</td>
-      </tr>`;
-    }).join('');
+    const rows = svcs.map(s => `<tr>
+      <td class="mute">${highlight(fmtDate(s.date), query)}</td>
+      <td>${fmtKm(s.km)}</td>
+      <td>${highlight(s.type || '', query)}</td>
+      <td class="mute">${highlight(s.parts || '—', query)}</td>
+      <td style="font-weight:600">₹${(+s.cost || 0).toLocaleString('en-IN')}</td>
+    </tr>`).join('');
 
     html += `
       <div class="search-vehicle-group">
@@ -411,11 +391,7 @@ function renderSearch() {
           <table class="data-table">
             <thead>
               <tr>
-                <th>Date</th>
-                <th>Reading</th>
-                <th>Service type</th>
-                <th>Parts replaced</th>
-                <th>Cost</th>
+                <th>Date</th><th>Reading</th><th>Service type</th><th>Parts replaced</th><th>Cost</th>
               </tr>
             </thead>
             <tbody>${rows}</tbody>
@@ -427,11 +403,9 @@ function renderSearch() {
   resultsEl.innerHTML = html;
 }
 
-// Debounced search input
 let searchTimer;
 document.getElementById('search-input').addEventListener('input', e => {
-  const val = e.target.value;
-  document.getElementById('search-clear').classList.toggle('hide', !val);
+  document.getElementById('search-clear').classList.toggle('hide', !e.target.value);
   clearTimeout(searchTimer);
   searchTimer = setTimeout(renderSearch, 180);
 });
@@ -578,5 +552,5 @@ function loadSample() {
 }
 
 /* ─── Init ───────────────────────────────────────────────────── */
-populateSearchVehicleFilter(); // populate on load, not just on tab click
+populateSearchVehicleFilter();
 render();
