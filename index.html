@@ -22,6 +22,7 @@
       <nav class="header-nav" role="tablist">
         <button class="nav-btn" role="tab" aria-selected="true" data-tab="tab-dash">Vehicles</button>
         <button class="nav-btn" role="tab" aria-selected="false" data-tab="tab-hist">Service history</button>
+        <button class="nav-btn" role="tab" aria-selected="false" data-tab="tab-search">Search repairs</button>
       </nav>
       <div class="header-actions">
         <button class="theme-toggle" id="theme-btn" title="Toggle theme" aria-label="Toggle theme"></button>
@@ -38,9 +39,60 @@
   <div class="app-wrap main-content">
     <section class="tab-panel active" id="tab-dash" role="tabpanel"></section>
     <section class="tab-panel" id="tab-hist" role="tabpanel"></section>
+    <section class="tab-panel" id="tab-search" role="tabpanel">
+
+      <!-- Search panel (static HTML, JS fills results) -->
+      <div class="search-header">
+        <h2 class="hist-heading">Search repairs</h2>
+        <p class="search-sub">Find past services by vehicle number, model, owner, service type or parts replaced.</p>
+      </div>
+
+      <div class="search-bar-wrap">
+        <div class="search-input-wrap">
+          <svg class="search-icon" xmlns="http://www.w3.org/2000/svg" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+          <input
+            id="search-input"
+            class="search-input"
+            type="search"
+            placeholder="e.g. TN 09 AB 1234, oil filter, brake…"
+            autocomplete="off"
+            spellcheck="false"
+          >
+          <button class="search-clear hide" id="search-clear" aria-label="Clear search">
+            <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
+          </button>
+        </div>
+
+        <div class="search-filters">
+          <select id="sf-vehicle" class="hist-filter">
+            <option value="">All vehicles</option>
+          </select>
+          <select id="sf-type" class="hist-filter">
+            <option value="">All service types</option>
+            <option>Regular service</option>
+            <option>Oil change</option>
+            <option>Brake service</option>
+            <option>Tyre change</option>
+            <option>Repair</option>
+            <option>Other</option>
+          </select>
+          <select id="sf-sort" class="hist-filter">
+            <option value="date-desc">Newest first</option>
+            <option value="date-asc">Oldest first</option>
+            <option value="cost-desc">Highest cost</option>
+            <option value="cost-asc">Lowest cost</option>
+            <option value="km-desc">Highest km</option>
+          </select>
+        </div>
+      </div>
+
+      <div id="search-results"></div>
+
+    </section>
   </div>
 </main>
 
+<!-- Vehicle dialog -->
 <dialog id="v-dlg" aria-labelledby="v-dlg-title">
   <div class="dlg-header">
     <span class="dlg-title" id="v-dlg-title">Add vehicle</span>
@@ -102,6 +154,7 @@
   </form>
 </dialog>
 
+<!-- Service log dialog -->
 <dialog id="s-dlg" aria-labelledby="s-dlg-title">
   <div class="dlg-header">
     <span class="dlg-title" id="s-dlg-title">Log a service</span>
