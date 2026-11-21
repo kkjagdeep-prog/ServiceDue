@@ -20,7 +20,7 @@
         <span class="wordmark-sub">Vehicle maintenance log</span>
       </div>
       <nav class="header-nav" role="tablist">
-        <button class="nav-btn" role="tab" aria-selected="true" data-tab="tab-dash">Vehicles</button>
+        <button class="nav-btn" role="tab" aria-selected="true"  data-tab="tab-dash">Vehicles</button>
         <button class="nav-btn" role="tab" aria-selected="false" data-tab="tab-hist">Service history</button>
         <button class="nav-btn" role="tab" aria-selected="false" data-tab="tab-search">Search repairs</button>
       </nav>
@@ -37,32 +37,23 @@
 
 <main>
   <div class="app-wrap main-content">
-    <section class="tab-panel active" id="tab-dash" role="tabpanel"></section>
-    <section class="tab-panel" id="tab-hist" role="tabpanel"></section>
-    <section class="tab-panel" id="tab-search" role="tabpanel">
 
-      <!-- Search panel (static HTML, JS fills results) -->
+    <section class="tab-panel active" id="tab-dash"   role="tabpanel"></section>
+    <section class="tab-panel"        id="tab-hist"   role="tabpanel"></section>
+
+    <section class="tab-panel" id="tab-search" role="tabpanel">
       <div class="search-header">
         <h2 class="hist-heading">Search repairs</h2>
         <p class="search-sub">Find past services by vehicle number, model, owner, service type or parts replaced.</p>
       </div>
-
       <div class="search-bar-wrap">
         <div class="search-input-wrap">
           <svg class="search-icon" xmlns="http://www.w3.org/2000/svg" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
-          <input
-            id="search-input"
-            class="search-input"
-            type="search"
-            placeholder="e.g. TN 09 AB 1234, oil filter, brake…"
-            autocomplete="off"
-            spellcheck="false"
-          >
+          <input id="search-input" class="search-input" type="search" placeholder="e.g. TN 09 AB 1234, oil filter, brake…" autocomplete="off" spellcheck="false">
           <button class="search-clear hide" id="search-clear" aria-label="Clear search">
             <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
           </button>
         </div>
-
         <div class="search-filters">
           <select id="sf-vehicle" class="hist-filter">
             <option value="">All vehicles</option>
@@ -85,10 +76,9 @@
           </select>
         </div>
       </div>
-
       <div id="search-results"></div>
-
     </section>
+
   </div>
 </main>
 
