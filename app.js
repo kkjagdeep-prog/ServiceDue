@@ -1,237 +1,365 @@
-const KEY = 'servicedue.v1';
-const $ = s => document.querySelector(s);
-const esc = s => String(s ?? '').replace(/[&<>"']/g, c =>
-  ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const icon = (name, size = 16) => {
+  const paths = {
+    car:      `<circle cx="5" cy="17" r="1"/><circle cx="19" cy="17" r="1"/><path d="M17 17H7V5a2 2 0 0 1 2-2h6l2 4v10z"/><path d="M5 17H3v-5l2-4"/>`,
+    plus:     `<path d="M12 5v14M5 12h14"/>`,
+    wrench:   `<path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/>`,
+    edit:     `<path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.12 2.12 0 0 1 3 3L12 15l-4 1 1-4Z"/>`,
+    trash:    `<path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>`,
+    download: `<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>`,
+    sun:      `<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/>`,
+    moon:     `<path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9z"/>`,
+    gauge:    `<path d="m12 14 4-4"/><path d="M3.34 19a10 10 0 1 1 17.32 0"/>`,
+  };
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${paths[name] || ''}</svg>`;
+};
+
+const KEY = 'servicedue.v2';
 const uid = () => Math.random().toString(36).slice(2, 9);
-const fmtKm = n => Number(n).toLocaleString('en-IN') + ' km';
-const fmtDate = s => new Date(s + 'T00:00:00').toLocaleDateString('en-IN',
-  { day: 'numeric', month: 'short', year: 'numeric' });
-const iso = d => d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
-const today = () => iso(new Date());
-const addMonths = (s, m) => { const d = new Date(s + 'T00:00:00'); d.setMonth(d.getMonth() + m); return iso(d); };
-const daysBetween = (a, b) => Math.round((new Date(b + 'T00:00:00') - new Date(a + 'T00:00:00')) / 864e5);
 
-let db = load();
-
-function load() {
+let db = (() => {
   try { return JSON.parse(localStorage.getItem(KEY)) || { vehicles: [], services: [] }; }
-  catch (e) { return { vehicles: [], services: [] }; }
-}
+  catch { return { vehicles: [], services: [] }; }
+})();
 
-function save() {
-  try { localStorage.setItem(KEY, JSON.stringify(db)); } catch (e) {}
-}
+const save = () => { try { localStorage.setItem(KEY, JSON.stringify(db)); } catch {} };
 
-/* ── Service due prediction ── */
+const iso = d => d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+const today = () => iso(new Date());
+const addMonths = (s, m) => { const d = new Date(s+'T00:00:00'); d.setMonth(d.getMonth()+m); return iso(d); };
+const daysBetween = (a, b) => Math.round((new Date(b+'T00:00:00') - new Date(a+'T00:00:00')) / 864e5);
+const fmtDate = s => new Date(s+'T00:00:00').toLocaleDateString('en-IN', { day:'numeric', month:'short', year:'numeric' });
+const fmtKm = n => Number(n).toLocaleString('en-IN') + ' km';
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+
 function predict(v) {
-  const list = db.services.filter(s => s.vid === v.id).sort((a, b) => b.date.localeCompare(a.date));
-  const last = list[0];
-  if (!last) return { status: 'none', label: 'No service logged' };
-  const nextKm = last.km + v.intervalKm;
+  const svcs = db.services.filter(s => s.vid === v.id).sort((a,b) => b.date.localeCompare(a.date));
+  const last = svcs[0];
+  if (!last) return { status: 'none', label: 'No service logged', last: null };
+  const nextKm   = last.km + v.intervalKm;
   const nextDate = addMonths(last.date, v.intervalMonths);
-  const kmLeft = nextKm - v.km;
+  const kmLeft   = nextKm - v.km;
   const daysLeft = daysBetween(today(), nextDate);
-  let status = 'ok', label = 'Not due';
-  if (kmLeft <= 0 || daysLeft < 0)   { status = 'over'; label = 'Overdue'; }
-  else if (kmLeft <= 500 || daysLeft <= 30) { status = 'soon'; label = 'Due soon'; }
+  let status = 'ok', label = 'Up to date';
+  if (kmLeft <= 0 || daysLeft < 0)         { status = 'over';  label = 'Overdue'; }
+  else if (kmLeft <= 500 || daysLeft <= 30) { status = 'soon';  label = 'Due soon'; }
   return { status, label, last, nextKm, nextDate, kmLeft, daysLeft };
 }
 
-/* ── Vehicles tab ── */
+function toast(msg) {
+  const wrap = document.getElementById('toast-wrap');
+  const el = document.createElement('div');
+  el.className = 'toast';
+  el.textContent = msg;
+  wrap.appendChild(el);
+  setTimeout(() => el.remove(), 2600);
+}
+
+let currentTheme = localStorage.getItem('servicedue.theme') || 'auto';
+
+function applyTheme(t) {
+  currentTheme = t;
+  localStorage.setItem('servicedue.theme', t);
+  const root = document.documentElement;
+  if (t === 'dark')       root.setAttribute('data-theme', 'dark');
+  else if (t === 'light') root.setAttribute('data-theme', 'light');
+  else                    root.removeAttribute('data-theme');
+  const isDark = t === 'dark' || (t === 'auto' && window.matchMedia('(prefers-color-scheme: dark)').matches);
+  document.getElementById('theme-btn').innerHTML = icon(isDark ? 'sun' : 'moon', 16);
+}
+
+applyTheme(currentTheme);
+
+document.getElementById('theme-btn').onclick = () => {
+  applyTheme({ auto: 'dark', dark: 'light', light: 'auto' }[currentTheme]);
+};
+
+document.querySelectorAll('.nav-btn').forEach(btn => {
+  btn.onclick = () => {
+    document.querySelectorAll('.nav-btn').forEach(b => b.setAttribute('aria-selected', 'false'));
+    document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+    btn.setAttribute('aria-selected', 'true');
+    document.getElementById(btn.dataset.tab).classList.add('active');
+  };
+});
+
 function renderDash() {
-  const el = $('#dash');
+  const dash = document.getElementById('tab-dash');
   if (!db.vehicles.length) {
-    el.innerHTML = `<div class="empty">
-      <p>No vehicles yet. Add your first vehicle to start tracking service dates.</p>
-      <button class="btn" id="e1">Add vehicle</button>
-      <button class="btn ghost" id="e2">Try sample data</button>
-    </div>`;
-    $('#e1').onclick = () => openVehicle();
-    $('#e2').onclick = sample;
+    dash.innerHTML = `
+      <div class="empty-state">
+        <div class="empty-left">
+          <div class="empty-eyebrow">${icon('gauge', 14)} Vehicle service tracker</div>
+          <h2 class="empty-heading">Never miss a service again.</h2>
+          <p class="empty-body">Add your vehicle, set a service interval, and log services as you go. ServiceDue tells you exactly when the next one is due.</p>
+          <div class="empty-actions">
+            <button class="btn btn-primary" id="empty-add">${icon('plus', 15)} Add vehicle</button>
+            <button class="btn btn-ghost" id="empty-sample">Load sample data</button>
+          </div>
+        </div>
+        <div class="empty-right">
+          <div class="empty-preview-row">
+            <span class="empty-preview-dot" style="background:var(--ok-rule)"></span>
+            <span class="empty-preview-label">Honda Activa · TN 09 AB 1234</span>
+            <span class="empty-preview-val">Up to date</span>
+          </div>
+          <div class="empty-preview-row">
+            <span class="empty-preview-dot" style="background:var(--soon-rule)"></span>
+            <span class="empty-preview-label">Hyundai i20 · TN 22 CD 5678</span>
+            <span class="empty-preview-val">Due in 24 days</span>
+          </div>
+          <div class="empty-preview-row">
+            <span class="empty-preview-dot" style="background:var(--over-rule)"></span>
+            <span class="empty-preview-label">Royal Enfield · TN 07 EF 9012</span>
+            <span class="empty-preview-val">Overdue 42 days</span>
+          </div>
+        </div>
+      </div>`;
+    document.getElementById('empty-add').onclick = () => openVehicleDlg();
+    document.getElementById('empty-sample').onclick = loadSample;
     return;
   }
-  const P = db.vehicles.map(v => ({ v, p: predict(v) }));
-  const n = k => P.filter(x => x.p.status === k).length;
-  el.innerHTML =
-    `<p class="summary">
-      <span><b>${n('over')}</b>overdue</span>
-      <span><b>${n('soon')}</b>due soon</span>
-      <span><b>${n('ok')}</b>not due</span>
-    </p>` +
-    P.map(({ v, p }) => {
-      const next = p.last
-        ? `<dt>Next service</dt><dd>at ${fmtKm(p.nextKm)} or by ${fmtDate(p.nextDate)}</dd>`
-        : `<dt>Next service</dt><dd>Log a service to see this</dd>`;
-      const left = p.last
-        ? `<dt>Remaining</dt><dd>${p.kmLeft > 0 ? fmtKm(p.kmLeft) + ' left' : fmtKm(-p.kmLeft) + ' over'} · ${p.daysLeft >= 0 ? p.daysLeft + ' days left' : (-p.daysLeft) + ' days over'}</dd>`
-        : '';
-      return `<article class="card ${p.status}">
-        <div class="row">
-          <div>
-            <h2>${esc(v.model)} · ${esc(v.number)}</h2>
-            <div class="sub">${esc(v.owner)} · ${esc(v.type)} · ${esc(v.year)}</div>
-          </div>
-          <span class="chip ${p.status}">${p.label}</span>
-        </div>
-        <dl class="facts">
-          <div><dt>Current reading</dt><dd>${fmtKm(v.km)}</dd></div>
-          <div>${next}</div>
-          ${left ? `<div>${left}</div>` : ''}
-          <div><dt>Last service</dt><dd>${p.last ? fmtDate(p.last.date) + ' at ' + fmtKm(p.last.km) : 'None yet'}</dd></div>
-        </dl>
-        <div class="acts">
-          <button class="btn sm" data-act="log"  data-id="${v.id}">Log service</button>
-          <button class="btn sm ghost" data-act="edit" data-id="${v.id}">Edit vehicle</button>
-          <button class="btn sm ghost danger" data-act="del" data-id="${v.id}">Delete</button>
-        </div>
-      </article>`;
-    }).join('');
+
+  const rows = db.vehicles.map(v => ({ v, p: predict(v) }));
+  const nOver = rows.filter(r => r.p.status === 'over').length;
+  const nSoon = rows.filter(r => r.p.status === 'soon').length;
+  const nOk   = rows.filter(r => r.p.status === 'ok' || r.p.status === 'none').length;
+
+  dash.innerHTML = `
+    <div class="summary-bar">
+      <div class="summary-label">${nOver}<span>Overdue</span></div>
+      <div class="summary-divider"></div>
+      <div class="summary-label">${nSoon}<span>Due soon</span></div>
+      <div class="summary-divider"></div>
+      <div class="summary-label">${nOk}<span>Up to date</span></div>
+      <div class="summary-bar-actions">
+        <button class="btn btn-primary" id="dash-add">${icon('plus', 15)} Add vehicle</button>
+      </div>
+    </div>
+    <div class="vehicle-list" id="vehicle-list">
+      ${rows.map(({ v, p }) => vehicleRow(v, p)).join('')}
+    </div>`;
+
+  document.getElementById('dash-add').onclick = () => openVehicleDlg();
+  document.getElementById('vehicle-list').addEventListener('click', onVehicleAction);
 }
 
-/* ── Service history tab ── */
-let filter = 'all';
+function vehicleRow(v, p) {
+  const kmText  = p.last ? (p.kmLeft > 0 ? `${fmtKm(p.kmLeft)} left` : `${fmtKm(-p.kmLeft)} over limit`) : '—';
+  const daysText= p.last ? (p.daysLeft >= 0 ? `${p.daysLeft}d left` : `${-p.daysLeft}d overdue`) : '—';
+  const nextKmTxt = p.last ? fmtKm(p.nextKm) : '—';
+  const nextDtTxt = p.last ? fmtDate(p.nextDate) : '—';
+  const lastTxt   = p.last ? `${fmtDate(p.last.date)} · ${fmtKm(p.last.km)}` : 'No services logged';
+
+  return `
+    <div class="vehicle-row ${p.status}" data-vid="${v.id}">
+      <div class="vehicle-row-rule"></div>
+      <div class="vehicle-row-body">
+        <div>
+          <div class="vehicle-number">${esc(v.number)}</div>
+          <div class="vehicle-meta">${esc(v.model)} · ${esc(v.owner)} · ${esc(v.year)}</div>
+          <span class="status-badge ${p.status}"><span class="status-dot"></span>${p.label}</span>
+        </div>
+        <div>
+          <div class="stat-label">Current reading</div>
+          <div class="stat-value">${fmtKm(v.km)}</div>
+          <div class="stat-sub">Last service: ${lastTxt}</div>
+        </div>
+        <div>
+          <div class="stat-label">Next service due</div>
+          <div class="stat-value ${p.status}">${nextKmTxt}</div>
+          <div class="stat-sub">${nextDtTxt} · ${kmText} · ${daysText}</div>
+        </div>
+      </div>
+      <div class="vehicle-row-actions">
+        <button class="btn btn-primary btn-sm" data-act="log"  data-vid="${v.id}">${icon('wrench', 13)} Log service</button>
+        <button class="btn btn-ghost   btn-sm" data-act="edit" data-vid="${v.id}">${icon('edit', 13)} Edit</button>
+        <button class="btn btn-danger  btn-sm" data-act="del"  data-vid="${v.id}">${icon('trash', 13)} Delete</button>
+      </div>
+    </div>`;
+}
+
+function onVehicleAction(e) {
+  const btn = e.target.closest('[data-act]');
+  if (!btn) return;
+  const v = db.vehicles.find(x => x.id === btn.dataset.vid);
+  if (!v) return;
+  if (btn.dataset.act === 'log')  openServiceDlg(v);
+  if (btn.dataset.act === 'edit') openVehicleDlg(v);
+  if (btn.dataset.act === 'del') {
+    if (!confirm(`Delete ${v.number} and all its service records?`)) return;
+    db.vehicles = db.vehicles.filter(x => x.id !== v.id);
+    db.services = db.services.filter(s => s.vid !== v.id);
+    save(); render(); toast('Vehicle removed');
+  }
+}
+
+let histFilter = 'all';
 
 function renderHist() {
-  const el = $('#hist');
-  const rows = db.services
-    .filter(s => filter === 'all' || s.vid === filter)
+  const hist = document.getElementById('tab-hist');
+  const svcs = db.services
+    .filter(s => histFilter === 'all' || s.vid === histFilter)
     .sort((a, b) => b.date.localeCompare(a.date));
-  const name = id => { const v = db.vehicles.find(x => x.id === id); return v ? esc(v.number) : 'Deleted vehicle'; };
-  const total = rows.reduce((t, s) => t + (+s.cost || 0), 0);
-  el.innerHTML =
-    `<div class="bar">
-      <label style="margin:0">Vehicle
-        <select id="flt">
-          <option value="all">All vehicles</option>
-          ${db.vehicles.map(v => `<option value="${v.id}" ${filter === v.id ? 'selected' : ''}>${esc(v.number)}</option>`).join('')}
+  const getV  = id => db.vehicles.find(x => x.id === id);
+  const total = svcs.reduce((t, s) => t + (+s.cost || 0), 0);
+
+  const filterOpts = db.vehicles.map(v =>
+    `<option value="${v.id}" ${histFilter === v.id ? 'selected' : ''}>${esc(v.number)}</option>`
+  ).join('');
+
+  const tableBody = svcs.length
+    ? svcs.map(s => {
+        const v = getV(s.vid);
+        return `<tr>
+          <td class="mute">${fmtDate(s.date)}</td>
+          <td>${v ? `${esc(v.number)}<br><small style="color:var(--ink-faint)">${esc(v.model)}</small>` : '<em>Deleted</em>'}</td>
+          <td>${fmtKm(s.km)}</td>
+          <td>${esc(s.type)}</td>
+          <td class="mute">${esc(s.parts) || '—'}</td>
+          <td style="font-weight:600">₹${(+s.cost || 0).toLocaleString('en-IN')}</td>
+          <td class="col-actions"><button class="btn btn-danger btn-sm" data-del-s="${s.id}">${icon('trash', 13)}</button></td>
+        </tr>`;
+      }).join('')
+    : `<tr><td colspan="7" style="text-align:center;padding:var(--s5);color:var(--ink-mute)">No service records match this filter.</td></tr>`;
+
+  hist.innerHTML = `
+    <div class="hist-toolbar">
+      <div class="hist-toolbar-left">
+        <h2 class="hist-heading">Service history</h2>
+        <select class="hist-filter" id="hist-flt">
+          <option value="all">All vehicles</option>${filterOpts}
         </select>
-      </label>
-      <div>
-        <strong>Total spent: ₹${total.toLocaleString('en-IN')}</strong>
-        <button class="btn sm ghost" id="csv">Download CSV</button>
       </div>
-    </div>` +
-    (rows.length
-      ? `<div class="scroll"><table>
-          <thead><tr><th>Date</th><th>Vehicle</th><th>Reading</th><th>Type</th><th>Parts</th><th>Cost</th><th></th></tr></thead>
-          <tbody>${rows.map(s => `<tr>
-            <td>${fmtDate(s.date)}</td>
-            <td>${name(s.vid)}</td>
-            <td>${fmtKm(s.km)}</td>
-            <td>${esc(s.type)}</td>
-            <td>${esc(s.parts) || '–'}</td>
-            <td>₹${(+s.cost || 0).toLocaleString('en-IN')}</td>
-            <td><button class="btn sm ghost danger" data-del-s="${s.id}">Remove</button></td>
-          </tr>`).join('')}</tbody>
-        </table></div>`
-      : `<div class="empty"><p>No services recorded yet. Use "Log service" on a vehicle to add one.</p></div>`);
-  $('#flt').onchange = e => { filter = e.target.value; renderHist(); };
-  $('#csv').onclick = exportCsv;
+      <div class="hist-toolbar-right">
+        <span class="hist-total">Total: <strong>₹${total.toLocaleString('en-IN')}</strong> across ${svcs.length} records</span>
+        <button class="btn btn-ghost btn-sm" id="csv-btn">${icon('download', 13)} Export CSV</button>
+      </div>
+    </div>
+    <div class="scroll-x">
+      <table class="data-table">
+        <thead><tr><th>Date</th><th>Vehicle</th><th>Reading</th><th>Service type</th><th>Parts replaced</th><th>Cost</th><th></th></tr></thead>
+        <tbody>${tableBody}</tbody>
+      </table>
+    </div>`;
+
+  document.getElementById('hist-flt').onchange = e => { histFilter = e.target.value; renderHist(); };
+  document.getElementById('csv-btn').onclick = exportCsv;
+  hist.querySelectorAll('[data-del-s]').forEach(btn => {
+    btn.onclick = () => {
+      if (!confirm('Remove this service record?')) return;
+      db.services = db.services.filter(s => s.id !== btn.dataset.delS);
+      save(); render(); toast('Record removed');
+    };
+  });
 }
 
-function render() { renderDash(); renderHist(); }
-
-/* ── CSV export ── */
 function exportCsv() {
   const q = v => '"' + String(v ?? '').replace(/"/g, '""') + '"';
-  const head = ['Date', 'Vehicle number', 'Model', 'Kilometre reading', 'Service type', 'Parts replaced', 'Cost'];
+  const head = ['Date','Vehicle number','Model','Kilometre reading','Service type','Parts replaced','Cost (INR)'];
   const lines = db.services.map(s => {
     const v = db.vehicles.find(x => x.id === s.vid) || {};
     return [s.date, v.number, v.model, s.km, s.type, s.parts, s.cost].map(q).join(',');
   });
   const a = document.createElement('a');
   a.href = URL.createObjectURL(new Blob([[head.map(q).join(','), ...lines].join('\n')], { type: 'text/csv' }));
-  a.download = 'service-history.csv';
+  a.download = 'servicedue-history.csv';
   a.click();
+  toast('CSV downloaded');
 }
 
-/* ── Dialogs ── */
-function openVehicle(v) {
-  const f = $('#vForm'); f.reset();
-  $('#vTitle').textContent = v ? 'Edit vehicle' : 'Add vehicle';
-  f.id.value = v ? v.id : '';
-  if (v) ['owner', 'number', 'model', 'type', 'year', 'km', 'intervalKm', 'intervalMonths'].forEach(k => f[k].value = v[k]);
-  $('#vDlg').showModal();
+function render() { renderDash(); renderHist(); }
+
+function openVehicleDlg(v) {
+  const isEdit = !!v;
+  document.getElementById('v-dlg-title').textContent = isEdit ? 'Edit vehicle' : 'Add vehicle';
+  const f = document.getElementById('v-form');
+  f.reset();
+  f.vid.value = isEdit ? v.id : '';
+  if (isEdit) {
+    f.owner.value          = v.owner;
+    f.number.value         = v.number;
+    f.model.value          = v.model;
+    f.vtype.value          = v.type;
+    f.year.value           = v.year;
+    f.km.value             = v.km;
+    f.intervalKm.value     = v.intervalKm;
+    f.intervalMonths.value = v.intervalMonths;
+  }
+  document.getElementById('v-dlg').showModal();
 }
 
-function openService(v) {
-  const f = $('#sForm'); f.reset();
-  $('#sTitle').textContent = 'Log a service · ' + v.number;
-  f.vid.value = v.id; f.date.value = today(); f.km.value = v.km;
-  $('#sDlg').showModal();
-}
-
-$('#vForm').addEventListener('submit', e => {
-  if (e.submitter.value !== 'ok') return;
+document.getElementById('v-form').onsubmit = e => {
+  e.preventDefault();
   const f = e.target;
-  const d = {
-    owner: f.owner.value.trim(), number: f.number.value.trim().toUpperCase(),
-    model: f.model.value.trim(), type: f.type.value,
-    year: +f.year.value, km: +f.km.value,
-    intervalKm: +f.intervalKm.value, intervalMonths: +f.intervalMonths.value
+  const data = {
+    owner: f.owner.value.trim(),
+    number: f.number.value.trim().toUpperCase(),
+    model: f.model.value.trim(),
+    type: f.vtype.value,
+    year: +f.year.value,
+    km: +f.km.value,
+    intervalKm: +f.intervalKm.value,
+    intervalMonths: +f.intervalMonths.value,
   };
-  if (f.id.value) { Object.assign(db.vehicles.find(v => v.id === f.id.value), d); }
-  else { db.vehicles.push({ id: uid(), ...d }); }
+  if (f.vid.value) {
+    Object.assign(db.vehicles.find(v => v.id === f.vid.value), data);
+    toast('Vehicle updated');
+  } else {
+    db.vehicles.push({ id: uid(), ...data });
+    toast('Vehicle added');
+  }
+  document.getElementById('v-dlg').close();
   save(); render();
-});
+};
 
-$('#sForm').addEventListener('submit', e => {
-  if (e.submitter.value !== 'ok') return;
-  const f = e.target, km = +f.km.value;
-  const v = db.vehicles.find(x => x.id === f.vid.value);
-  db.services.push({ id: uid(), vid: f.vid.value, date: f.date.value, km, type: f.type.value, parts: f.parts.value.trim(), cost: +f.cost.value || 0 });
+function openServiceDlg(v) {
+  document.getElementById('s-dlg-title').textContent = `Log service · ${v.number}`;
+  const f = document.getElementById('s-form');
+  f.reset();
+  f.svid.value  = v.id;
+  f.sdate.value = today();
+  f.skm.value   = v.km;
+  document.getElementById('s-dlg').showModal();
+}
+
+document.getElementById('s-form').onsubmit = e => {
+  e.preventDefault();
+  const f = e.target;
+  const km = +f.skm.value;
+  const v = db.vehicles.find(x => x.id === f.svid.value);
+  db.services.push({
+    id: uid(), vid: f.svid.value, date: f.sdate.value,
+    km, type: f.stype.value, parts: f.sparts.value.trim(), cost: +f.scost.value || 0,
+  });
   if (v && km > v.km) v.km = km;
+  document.getElementById('s-dlg').close();
   save(); render();
+  toast('Service logged');
+};
+
+document.querySelectorAll('[data-close-dlg]').forEach(btn => {
+  btn.onclick = () => btn.closest('dialog').close();
 });
 
-document.querySelectorAll('[data-close]').forEach(b => b.onclick = () => b.closest('dialog').close());
+document.getElementById('header-add').onclick = () => openVehicleDlg();
 
-/* ── Action buttons ── */
-$('#addVehicle').onclick = () => openVehicle();
-
-$('#dash').addEventListener('click', e => {
-  const b = e.target.closest('[data-act]'); if (!b) return;
-  const v = db.vehicles.find(x => x.id === b.dataset.id); if (!v) return;
-  if (b.dataset.act === 'log')  openService(v);
-  if (b.dataset.act === 'edit') openVehicle(v);
-  if (b.dataset.act === 'del' && confirm('Delete ' + v.number + ' and all its service records?')) {
-    db.vehicles = db.vehicles.filter(x => x.id !== v.id);
-    db.services = db.services.filter(s => s.vid !== v.id);
-    save(); render();
-  }
-});
-
-$('#hist').addEventListener('click', e => {
-  const b = e.target.closest('[data-del-s]'); if (!b) return;
-  if (confirm('Remove this service record?')) {
-    db.services = db.services.filter(s => s.id !== b.dataset.delS);
-    save(); render();
-  }
-});
-
-document.querySelectorAll('nav button').forEach(b => b.onclick = () => {
-  document.querySelectorAll('nav button').forEach(x => x.setAttribute('aria-selected', x === b));
-  $('#dash').classList.toggle('hide', b.dataset.tab !== 'dash');
-  $('#hist').classList.toggle('hide', b.dataset.tab !== 'hist');
-});
-
-/* ── Sample data ── */
-function sample() {
+function loadSample() {
   const a = uid(), b = uid(), c = uid();
   const ago = m => addMonths(today(), -m);
   db = {
     vehicles: [
-      { id: a, owner: 'Arun Kumar',  number: 'TN 09 AB 1234', model: 'Honda Activa',           type: 'Two-wheeler', year: 2021, km: 24600, intervalKm: 5000,  intervalMonths: 6  },
-      { id: b, owner: 'Meena S',     number: 'TN 22 CD 5678', model: 'Hyundai i20',             type: 'Car',         year: 2019, km: 61200, intervalKm: 10000, intervalMonths: 12 },
-      { id: c, owner: 'Ravi P',      number: 'TN 07 EF 9012', model: 'Royal Enfield Classic',   type: 'Two-wheeler', year: 2018, km: 38000, intervalKm: 3000,  intervalMonths: 6  }
+      { id:a, owner:'Arun Kumar', number:'TN 09 AB 1234', model:'Honda Activa 6G',          type:'Two-wheeler', year:2021, km:24600, intervalKm:5000,  intervalMonths:6  },
+      { id:b, owner:'Meena S',    number:'TN 22 CD 5678', model:'Hyundai i20 Asta',          type:'Car',         year:2019, km:61200, intervalKm:10000, intervalMonths:12 },
+      { id:c, owner:'Ravi P',     number:'TN 07 EF 9012', model:'Royal Enfield Classic 350', type:'Two-wheeler', year:2018, km:38000, intervalKm:3000,  intervalMonths:6  },
     ],
     services: [
-      { id: uid(), vid: a, date: ago(4), km: 20000, type: 'Regular service', parts: 'Engine oil, air filter', cost: 1200 },
-      { id: uid(), vid: b, date: ago(5), km: 55000, type: 'Regular service', parts: 'Oil filter, brake pads', cost: 6400 },
-      { id: uid(), vid: c, date: ago(8), km: 33500, type: 'Oil change',       parts: 'Engine oil',            cost: 900  }
-    ]
+      { id:uid(), vid:a, date:ago(4),  km:20000, type:'Regular service', parts:'Engine oil, air filter', cost:1200 },
+      { id:uid(), vid:b, date:ago(5),  km:55000, type:'Regular service', parts:'Oil filter, brake pads', cost:6400 },
+      { id:uid(), vid:b, date:ago(14), km:46000, type:'Oil change',       parts:'Engine oil, oil filter', cost:3200 },
+      { id:uid(), vid:c, date:ago(8),  km:33500, type:'Oil change',       parts:'Engine oil',             cost:900  },
+    ],
   };
-  save(); render();
+  save(); render(); toast('Sample data loaded');
 }
 
 render();
